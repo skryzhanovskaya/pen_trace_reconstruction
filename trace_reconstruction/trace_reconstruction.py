@@ -6,12 +6,14 @@
 import networkx as nx
 import math
 from collections import deque
+from typing import List, Tuple
 
 from trace_reconstruction.strokes import *
 
 
 class SkeletonGraph:
-    def __init__(self, nodes, edges):
+    def __init__(self, nodes: List[Tuple[float, float]], edges: List[Tuple[int, int]]):
+
         self.nx_graph = self.build_skeleton_graph(nodes, edges)
 
         self.final_nodes = [node for (node, degree) in self.nx_graph.degree() if degree == 1]
@@ -110,13 +112,17 @@ class MetaGraph:
         strokes += find_simple_strokes(self.skeleton_graph, strokes)
         return strokes
 
+
 class TraceReconstructor:
     def __init__(self, skeleton_graph, meta_graph):
         self.skeleton_graph = skeleton_graph
         self.meta_graph = meta_graph
 
-    def trace(self):
-
+    def trace(self) -> List[List[List[int]]]:
+        """
+        returns:
+            trace: a sequence of nodes for each connected component of the skeleton graph separated on strokes
+        """
         meta_connected_components = list(nx.connected_components(self.meta_graph.nx_graph))
         meta_connected_components = sorted(meta_connected_components,
                                            key=lambda cc: self.skeleton_graph.v2cc[list(cc)[0].trace_path[0]])

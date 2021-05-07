@@ -1,15 +1,15 @@
 #
 # Created by skryzhanovskaya (skryzhanovskaya@yandex.ru)
 #
+from typing import List, Tuple
 
-def process_skeleton(skeleton_path):
+
+def process_skeleton(skeleton_path) -> Tuple[List[Tuple[float, float]], List[Tuple[int, int]]]:
     """
-    arguments:
-        skeleton_path - file with skeleton,
-                   each line contains 4 float coordinates x1, y1, x2, y2 for an edge ((x1, y1), (x2, y2))
-    returns:
-        nodes - list of nodes, node - (x, y)
-        edges - list of edges, edge - (v1, v2)
+    params:
+        skeleton_path: path to file with a skeleton whose
+            each line contains 4 float coordinates x1, y1, x2, y2 separated by spaces
+            for an edge between vertices with coordinates (x1, y1) and (x2, y2)
     """
 
     with open(skeleton_path, 'r') as f:
