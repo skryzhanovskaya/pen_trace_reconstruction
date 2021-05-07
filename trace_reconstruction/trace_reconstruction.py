@@ -7,10 +7,10 @@ import networkx as nx
 import math
 from collections import deque
 
-from .strokes import find_cyclic_strokes, find_vertical_strokes, find_semivertical_strokes, find_simple_strokes
+from trace_reconstruction.strokes import *
+
 
 class SkeletonGraph:
-    
     def __init__(self, nodes, edges):
         self.nx_graph = self.build_skeleton_graph(nodes, edges)
 
@@ -20,7 +20,7 @@ class SkeletonGraph:
         connected_components = list(nx.connected_components(self.nx_graph))
         self.connected_components = self.sort_connected_components(connected_components)
 
-        self.v2cc = {v:i for i, cc in enumerate(self.connected_components) for v in cc }
+        self.v2cc = {v: i for i, cc in enumerate(self.connected_components) for v in cc}
 
         if len(self.conjunctions) != 0 or len(self.final_nodes) != 0:
             self.branch_nodes = set(self.conjunctions + self.final_nodes)
@@ -35,7 +35,7 @@ class SkeletonGraph:
             if cur_v in self.branch_nodes and cur_v != prev_v:
                 if start_v < cur_v:
                     branches.append(branch)
-                if start_v == cur_v: # cycle
+                if start_v == cur_v:  # find cycle
                     flag = True
                     for b in branches:
                         if set(branch) == set(b):
@@ -83,7 +83,6 @@ class SkeletonGraph:
 
 
 class TraceReconstructor:
-    
     def __init__(self, nodes, edges):
         self.skeleton_graph = SkeletonGraph(nodes, edges)
         self.strokes = self.find_strokes()
@@ -104,7 +103,6 @@ class TraceReconstructor:
 
         return meta_graph 
 
-
     def find_strokes(self):
         strokes = []
         strokes += find_cyclic_strokes(self.skeleton_graph)
@@ -117,14 +115,14 @@ class TraceReconstructor:
     def trace(self):
 
         meta_connected_components = list(nx.connected_components(self.meta_graph))
-        meta_connected_components = sorted(meta_connected_components, 
-                                            key=lambda cc: self.skeleton_graph.v2cc[list(cc)[0].trace_path[0]])
+        meta_connected_components = sorted(meta_connected_components,
+                                           key=lambda cc: self.skeleton_graph.v2cc[list(cc)[0].trace_path[0]])
  
         trace = []
         stroke_trace = []
         for meta_cc in meta_connected_components:
             start_stroke = self.find_start_stroke(meta_cc)
-            meta_spanning_tree = self.build_spanning_tree(meta_cc, start_stroke)
+            meta_spanning_tree = self.build_spanning_tree(start_stroke)
             cc_stroke_trace = self.stroke_trace(meta_spanning_tree, start_stroke)
             cc_trace = []
             
@@ -170,7 +168,7 @@ class TraceReconstructor:
         start_stroke = sorted(stroke_dict.items(), key=lambda item: item[1])[0][0]
         return start_stroke
 
-    def build_spanning_tree(self, meta_strokes, root):
+    def build_spanning_tree(self, root):
         # взвешенное дерево
         spanning_tree = nx.Graph()
         spanning_tree.add_node(root, weight=root.len)
@@ -209,14 +207,14 @@ class TraceReconstructor:
         counter = 1
 
         while counter != len(meta_graph.nodes):
-            next_seen = {next_stroke: meta_graph.nodes[next_stroke]['max_path_weight'] 
-                            for next_stroke in meta_graph.adj[stroke] 
-                            if meta_graph.nodes[next_stroke]['seen']}
-            next_unseen = {next_stroke: meta_graph.nodes[next_stroke]['max_path_weight'] 
-                            for next_stroke in meta_graph.adj[stroke] 
-                            if not meta_graph.nodes[next_stroke]['seen']}
+            next_seen = {next_stroke: meta_graph.nodes[next_stroke]['max_path_weight']
+                         for next_stroke in meta_graph.adj[stroke]
+                         if meta_graph.nodes[next_stroke]['seen']}
+            next_unseen = {next_stroke: meta_graph.nodes[next_stroke]['max_path_weight']
+                           for next_stroke in meta_graph.adj[stroke]
+                           if not meta_graph.nodes[next_stroke]['seen']}
 
-            if len(next_unseen) == 0: # return
+            if len(next_unseen) == 0:  # return to the previous stroke
                 stroke = sorted(next_seen.items(), key=lambda item: item[1], reverse=True)[0][0]
 
             else:
@@ -226,6 +224,3 @@ class TraceReconstructor:
                 trace.append(stroke)
 
         return trace
-
-
-
