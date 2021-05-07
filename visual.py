@@ -2,12 +2,11 @@ import argparse
 import os
 
 from tkinter import *
-from PIL import Image
-from PIL import ImageTk
+from PIL import Image, ImageTk, ImageGrab
 from functools import partial
 
 from utils import process_skeleton
-from trace_reconstruction import TraceReconstructor
+from trace_reconstruction import *
 
 
 def _exit(window):
@@ -25,6 +24,7 @@ def center_window(window, width=300, height=200):
 
 	x = (screen_width/2) - (width/2)
 	y = (screen_height/2) - (height/2)
+
 	window.geometry('+%d+%d' % (x, y))
 
 
@@ -35,8 +35,20 @@ class PrintTrace:
 		self.trace = trace
 		self.strokes = strokes
 		self.rate = rate
+		# self.save_idx = 0
 
 	def __call__(self, event, canvas):
+		# x = canvas.winfo_rootx() * 2 + canvas.winfo_x()
+		# y = canvas.winfo_rooty() * 2 + canvas.winfo_y()
+		# x1 = x + canvas.winfo_width() * 2
+		# y1 = y + canvas.winfo_height() * 2
+		# box = (x, y, x1, y1)
+		#
+		# grabcanvas = ImageGrab.grab(bbox=box)
+		# grabcanvas = grabcanvas.convert('RGB')
+		# grabcanvas.save(f"out_{self.save_idx}.jpg")
+		# self.save_idx += 1
+
 		if self.cur_stroke < len(self.trace):
 			trace = self.trace[self.cur_stroke][self.cur_idx:self.cur_idx + self.rate]
 
@@ -60,9 +72,13 @@ class PrintTrace:
 
 def build_trace(skeleton_path, scale):
 	nodes, edges = process_skeleton(skeleton_path)
-	trace_reconstructor = TraceReconstructor(nodes, edges)
-	stroke_trace, trace = trace_reconstructor.trace()
-	skeleton_graph = trace_reconstructor.skeleton_graph.nx_graph
+	skeleton_graph = SkeletonGraph(nodes, edges)
+	meta_graph = MetaGraph(skeleton_graph)
+	trace_reconstructor = TraceReconstructor(skeleton_graph, meta_graph)
+	trace = trace_reconstructor.trace()
+	stroke_trace = trace_reconstructor.stroke_trace()
+
+	skeleton_graph = skeleton_graph.nx_graph
 
 	node_trace = []
 	stroke_names = []
@@ -128,6 +144,6 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--images-path', required=True)
 	parser.add_argument('--skeletons-path', required=True)
-	parser.add_argument('--rate', default=10, required=False)
+	parser.add_argument('--rate', default=30, required=False)
 	args = parser.parse_args()
 	print_words(args.images_path, args.skeletons_path, args.rate)
