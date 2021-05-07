@@ -82,17 +82,17 @@ class SkeletonGraph:
         return sorted_components
 
 
-class TraceReconstructor:
-    def __init__(self, nodes, edges):
-        self.skeleton_graph = SkeletonGraph(nodes, edges)
+class MetaGraph:
+    def __init__(self, skeleton_graph):
+        self.skeleton_graph = skeleton_graph
         self.strokes = self.find_strokes()
-        self.meta_graph = self.build_meta_graph()
-   
+        self.nx_graph = self.build_meta_graph()
+
     def build_meta_graph(self):
         meta_graph = nx.Graph()
 
         for s in self.strokes:
-            meta_graph.add_node(s) 
+            meta_graph.add_node(s)
 
         for i in range(len(self.strokes)):
             s1 = self.strokes[i]
@@ -100,8 +100,7 @@ class TraceReconstructor:
                 s2 = self.strokes[j]
                 if len(set(s1.trace_path) & set(s2.trace_path)) != 0:
                     meta_graph.add_edge(s1, s2)
-
-        return meta_graph 
+        return meta_graph
 
     def find_strokes(self):
         strokes = []
@@ -109,21 +108,24 @@ class TraceReconstructor:
         strokes += find_vertical_strokes(self.skeleton_graph)
         strokes += find_semivertical_strokes(self.skeleton_graph, strokes)
         strokes += find_simple_strokes(self.skeleton_graph, strokes)
-
         return strokes
+
+class TraceReconstructor:
+    def __init__(self, skeleton_graph, meta_graph):
+        self.skeleton_graph = skeleton_graph
+        self.meta_graph = meta_graph
 
     def trace(self):
 
-        meta_connected_components = list(nx.connected_components(self.meta_graph))
+        meta_connected_components = list(nx.connected_components(self.meta_graph.nx_graph))
         meta_connected_components = sorted(meta_connected_components,
                                            key=lambda cc: self.skeleton_graph.v2cc[list(cc)[0].trace_path[0]])
  
         trace = []
-        stroke_trace = []
         for meta_cc in meta_connected_components:
             start_stroke = self.find_start_stroke(meta_cc)
             meta_spanning_tree = self.build_spanning_tree(start_stroke)
-            cc_stroke_trace = self.stroke_trace(meta_spanning_tree, start_stroke)
+            cc_stroke_trace = self.__stroke_trace(meta_spanning_tree, start_stroke)
             cc_trace = []
             
             for i, stroke in enumerate(cc_stroke_trace):
@@ -140,9 +142,22 @@ class TraceReconstructor:
                             break
                 cc_trace += [stroke.trace(start_node)]
             trace += [cc_trace]
+
+        return trace
+
+    def stroke_trace(self):
+        meta_connected_components = list(nx.connected_components(self.meta_graph.nx_graph))
+        meta_connected_components = sorted(meta_connected_components,
+                                           key=lambda cc: self.skeleton_graph.v2cc[list(cc)[0].trace_path[0]])
+
+        stroke_trace = []
+        for meta_cc in meta_connected_components:
+            start_stroke = self.find_start_stroke(meta_cc)
+            meta_spanning_tree = self.build_spanning_tree(start_stroke)
+            cc_stroke_trace = self.__stroke_trace(meta_spanning_tree, start_stroke)
             stroke_trace += [cc_stroke_trace]
 
-        return stroke_trace, trace
+        return stroke_trace
 
     def find_start_stroke(self, meta_strokes):
         skel_nx_graph = self.skeleton_graph.nx_graph
@@ -175,7 +190,7 @@ class TraceReconstructor:
         queue = deque([root])
         while queue:
             v = queue.popleft()
-            for u in self.meta_graph.adj[v]:
+            for u in self.meta_graph.nx_graph.adj[v]:
                 if u not in spanning_tree.nodes:
                     spanning_tree.add_node(u, weight=u.len)
                     spanning_tree.add_edge(v, u)
@@ -190,10 +205,10 @@ class TraceReconstructor:
                 w = TraceReconstructor.find_maximal_path_weight(meta_graph, next_s, s)
                 max_w = max(w, max_w)
         meta_graph.nodes[s]['max_path_weight'] = max_w + meta_graph.nodes[s]['weight']
-        return meta_graph.nodes[s]['max_path_weight'] 
+        return meta_graph.nodes[s]['max_path_weight']
 
     @staticmethod
-    def stroke_trace(meta_graph, start_stroke):
+    def __stroke_trace(meta_graph, start_stroke):
         TraceReconstructor.find_maximal_path_weight(meta_graph, start_stroke, -1)
         
         for stroke in meta_graph.nodes:

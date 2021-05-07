@@ -3,6 +3,6 @@
 #
 
 
-from .trace_reconstruction import SkeletonGraph, TraceReconstructor
+from .trace_reconstruction import SkeletonGraph, MetaGraph, TraceReconstructor
 
 
